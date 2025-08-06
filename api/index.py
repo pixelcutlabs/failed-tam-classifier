@@ -13,6 +13,8 @@ from flask import Flask, render_template, jsonify, request, send_file, session
 from flask_cors import CORS
 import io
 import tempfile
+import urllib.request
+import urllib.parse
 
 app = Flask(__name__, template_folder='../templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
@@ -25,6 +27,10 @@ USER_SESSION_TIMEOUT = 120  # 2 minutes timeout for inactive sessions (reduced f
 
 # State file path (using /tmp for Vercel)
 STATE_FILE = '/tmp/review_state.json'
+
+# GitHub configuration for persistent storage
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')  # Set this in Vercel environment variables
+GITHUB_GIST_ID = os.environ.get('GITHUB_GIST_ID')  # Set this in Vercel environment variables
 
 # Global state (persistent storage for Vercel)
 global_state = {
@@ -39,19 +45,87 @@ global_state = {
     }
 }
 
-def save_state():
-    """Save current state to persistent storage"""
+def save_to_github_gist(data):
+    """Save data to GitHub Gist for persistent storage"""
+    if not GITHUB_TOKEN or not GITHUB_GIST_ID:
+        print("GitHub token or gist ID not configured, skipping GitHub save")
+        return False
+    
     try:
-        # Save to /tmp which persists across requests in Vercel
-        with open(STATE_FILE, 'w') as f:
-            # Don't save companies data (too large), just shared state
-            state_to_save = {
-                'shared_state': global_state['shared_state'],
-                'version': '1.0',  # For future compatibility
-                'saved_at': datetime.now().isoformat()
+        # Prepare the data
+        gist_data = {
+            "files": {
+                "review_state.json": {
+                    "content": json.dumps(data, indent=2)
+                }
             }
+        }
+        
+        # Create the request
+        url = f"https://api.github.com/gists/{GITHUB_GIST_ID}"
+        data_bytes = json.dumps(gist_data).encode('utf-8')
+        
+        req = urllib.request.Request(url, data=data_bytes, method='PATCH')
+        req.add_header('Authorization', f'token {GITHUB_TOKEN}')
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('User-Agent', 'Website-Review-Tool')
+        
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            print(f"✅ State saved to GitHub Gist: {result['html_url']}")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Error saving to GitHub Gist: {e}")
+        return False
+
+def load_from_github_gist():
+    """Load data from GitHub Gist"""
+    if not GITHUB_TOKEN or not GITHUB_GIST_ID:
+        print("GitHub token or gist ID not configured, skipping GitHub load")
+        return None
+    
+    try:
+        url = f"https://api.github.com/gists/{GITHUB_GIST_ID}"
+        
+        req = urllib.request.Request(url)
+        req.add_header('Authorization', f'token {GITHUB_TOKEN}')
+        req.add_header('User-Agent', 'Website-Review-Tool')
+        
+        with urllib.request.urlopen(req) as response:
+            gist_data = json.loads(response.read().decode('utf-8'))
+            
+            if 'review_state.json' in gist_data['files']:
+                content = gist_data['files']['review_state.json']['content']
+                data = json.loads(content)
+                print(f"✅ State loaded from GitHub Gist")
+                return data
+            else:
+                print("❌ review_state.json not found in gist")
+                return None
+                
+    except Exception as e:
+        print(f"❌ Error loading from GitHub Gist: {e}")
+        return None
+
+def save_state():
+    """Save current state to persistent storage (local + GitHub)"""
+    try:
+        # Prepare state data
+        state_to_save = {
+            'shared_state': global_state['shared_state'],
+            'version': '1.1',  # Updated version
+            'saved_at': datetime.now().isoformat()
+        }
+        
+        # Save to local /tmp first (fast access)
+        with open(STATE_FILE, 'w') as f:
             json.dump(state_to_save, f, indent=2)
         print(f"State saved to {STATE_FILE}")
+        
+        # Save to GitHub Gist for persistence across deployments
+        save_to_github_gist(state_to_save)
+        
     except Exception as e:
         print(f"Error saving state: {e}")
 
@@ -65,15 +139,31 @@ def clear_state():
         print(f"Error clearing state: {e}")
 
 def load_state():
-    """Load state from persistent storage"""
+    """Load state from persistent storage (local then GitHub)"""
     try:
+        # Try loading from local /tmp first (faster)
         if os.path.exists(STATE_FILE):
             with open(STATE_FILE, 'r') as f:
                 saved_state = json.load(f)
                 global_state['shared_state'].update(saved_state['shared_state'])
-            print(f"State loaded from {STATE_FILE}")
+            print(f"State loaded from local {STATE_FILE}")
             print(f"Loaded progress: {len(global_state['shared_state']['completed_reviews']['liked'])} liked, {len(global_state['shared_state']['completed_reviews']['disliked'])} disliked")
             return True
+        else:
+            # Try loading from GitHub Gist if local file doesn't exist
+            print("Local state file not found, trying GitHub Gist...")
+            gist_data = load_from_github_gist()
+            if gist_data and 'shared_state' in gist_data:
+                global_state['shared_state'].update(gist_data['shared_state'])
+                print(f"State loaded from GitHub Gist")
+                print(f"Loaded progress: {len(global_state['shared_state']['completed_reviews']['liked'])} liked, {len(global_state['shared_state']['completed_reviews']['disliked'])} disliked")
+                
+                # Save to local file for future fast access
+                with open(STATE_FILE, 'w') as f:
+                    json.dump(gist_data, f, indent=2)
+                
+                return True
+                
     except Exception as e:
         print(f"Error loading state: {e}")
     return False
@@ -616,10 +706,10 @@ def admin_reset():
         'last_updated': datetime.now().isoformat()
     }
     
-    # Save reset state
+    # Save reset state to both local and GitHub
     save_state()
     
-    return jsonify({'success': True, 'message': 'All progress and leaderboard reset successfully'})
+    return jsonify({'success': True, 'message': 'All progress and leaderboard reset successfully (saved to persistent storage)'})
 
 @app.route('/api/admin/stats')
 def admin_stats():
@@ -640,7 +730,13 @@ def test_endpoint():
         'status': 'success',
         'message': 'API is working!',
         'companies_loaded': len(global_state['companies']),
-        'environment': 'vercel' if os.environ.get('VERCEL') else 'local'
+        'environment': 'vercel' if os.environ.get('VERCEL') else 'local',
+        'persistent_storage': {
+            'github_configured': bool(GITHUB_TOKEN and GITHUB_GIST_ID),
+            'github_token_set': bool(GITHUB_TOKEN),
+            'github_gist_id_set': bool(GITHUB_GIST_ID),
+            'local_state_exists': os.path.exists(STATE_FILE)
+        }
     })
 
 @app.route('/api/debug/assignments')
@@ -668,4 +764,5 @@ load_state()  # Load persistent state on startup
 
 # Vercel expects the app to be available as 'app'
 if __name__ == '__main__':
+    app.run(debug=True)
     app.run(debug=True)
