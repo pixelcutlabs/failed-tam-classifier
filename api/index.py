@@ -306,14 +306,29 @@ def mark_company_reviewed(user_id, company_index, liked):
     
     # Update leaderboard for the user
     username = get_username()
+    print(f"🏆 Updating leaderboard for user: {username}")
     if username:
-        if username in global_state['shared_state']['leaderboard']:
-            global_state['shared_state']['leaderboard'][username]['reviews'] += 1
-            if liked:
-                global_state['shared_state']['leaderboard'][username]['liked'] += 1
-            else:
-                global_state['shared_state']['leaderboard'][username]['disliked'] += 1
-            global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+        # Ensure user exists in leaderboard first
+        if username not in global_state['shared_state']['leaderboard']:
+            print(f"⚠️ User {username} not found in leaderboard, adding them now")
+            global_state['shared_state']['leaderboard'][username] = {
+                'reviews': 0,
+                'liked': 0,
+                'disliked': 0,
+                'last_active': time.time()
+            }
+        
+        # Update stats
+        global_state['shared_state']['leaderboard'][username]['reviews'] += 1
+        if liked:
+            global_state['shared_state']['leaderboard'][username]['liked'] += 1
+        else:
+            global_state['shared_state']['leaderboard'][username]['disliked'] += 1
+        global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+        
+        print(f"🏆 Updated {username}: {global_state['shared_state']['leaderboard'][username]}")
+    else:
+        print(f"❌ No username found when trying to update leaderboard for user {user_id[:8]}")
     
     # Remove assignment
     del global_state['shared_state']['assigned_companies'][str(company_index)]
@@ -458,6 +473,33 @@ def mark_company():
 def get_progress():
     """Get current progress statistics"""
     return jsonify(get_progress_stats())
+
+@app.route('/api/force-add-to-leaderboard', methods=['POST'])
+def force_add_to_leaderboard():
+    """Force add current user to leaderboard for testing"""
+    username = get_username()
+    user_id = get_user_id()
+    
+    if not username:
+        return jsonify({'error': 'No username set'})
+    
+    # Force add to leaderboard
+    global_state['shared_state']['leaderboard'][username] = {
+        'reviews': 0,
+        'liked': 0,
+        'disliked': 0,
+        'last_active': time.time()
+    }
+    
+    save_state()
+    
+    print(f"🏆 FORCE ADDED {username} to leaderboard")
+    
+    return jsonify({
+        'success': True,
+        'username': username,
+        'leaderboard': global_state['shared_state']['leaderboard']
+    })
 
 @app.route('/api/leaderboard')
 def get_leaderboard():

@@ -697,6 +697,7 @@
                     </div>
                     <div id="userBadges" style="margin-top: 1rem;"></div>
                     <button onclick="debugAssignments()" class="debug-btn" title="Debug Multi-User Assignments" style="margin-top: 0.5rem; padding: 0.3rem 0.8rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">🔍 Debug Assignments</button>
+                    <button onclick="forceAddToLeaderboard()" class="debug-btn" title="Force Add to Leaderboard" style="margin-top: 0.5rem; margin-left: 0.5rem; padding: 0.3rem 0.8rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">🏆 Fix Leaderboard</button>
                     <div id="debugResult" style="margin-top: 0.5rem; font-size: 0.8rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; display: none;"></div>
                 </div>
 
@@ -1281,6 +1282,39 @@
                 resultDiv.innerHTML = `❌ Debug Failed: ${error.message}<br><button onclick="document.getElementById('debugResult').style.display='none'" style="padding: 0.2rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">Close</button>`;
                 resultDiv.style.color = 'red';
                 console.error('Debug Error:', error);
+            }
+        }
+
+        // Force add to leaderboard function
+        async function forceAddToLeaderboard() {
+            const resultDiv = document.getElementById('debugResult') || document.getElementById('testResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Forcing add to leaderboard...';
+            
+            try {
+                const response = await fetch('/api/force-add-to-leaderboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `✅ SUCCESS! Added ${data.username} to leaderboard!<br><br>Current leaderboard: ${JSON.stringify(data.leaderboard, null, 2)}<br><br><button onclick="document.getElementById('debugResult').style.display='none'" style="padding: 0.2rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">Close</button>`;
+                    resultDiv.style.color = 'green';
+                    
+                    // Reload leaderboard
+                    setTimeout(() => {
+                        window.reviewer.loadLeaderboard();
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = `❌ Failed: ${data.error}<br><button onclick="document.getElementById('debugResult').style.display='none'" style="padding: 0.2rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">Close</button>`;
+                    resultDiv.style.color = 'red';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}<br><button onclick="document.getElementById('debugResult').style.display='none'" style="padding: 0.2rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">Close</button>`;
+                resultDiv.style.color = 'red';
+                console.error('Force add error:', error);
             }
         }
 
