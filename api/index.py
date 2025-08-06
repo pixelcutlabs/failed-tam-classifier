@@ -157,17 +157,39 @@ def get_user_id():
     return session['user_id']
 
 def get_username():
-    """Get username from session"""
-    return session.get('username', None)
+    """Get username from session or persistent storage"""
+    # First try session
+    username = session.get('username', None)
+    if username:
+        return username
+    
+    # If not in session, try to get from user sessions by user_id
+    user_id = get_user_id()
+    user_session = global_state['shared_state']['user_sessions'].get(user_id, {})
+    return user_session.get('username', None)
 
 def is_username_set():
-    """Check if username is set in session"""
-    username = session.get('username', None)
+    """Check if username is set in session or persistent storage"""
+    username = get_username()
     return username is not None and username.strip() != ''
 
 def set_username(username):
-    """Set username in session and initialize in leaderboard"""
+    """Set username in session and persistent storage"""
+    user_id = get_user_id()
     session['username'] = username
+    
+    # Also store in user sessions for persistence
+    if user_id not in global_state['shared_state']['user_sessions']:
+        global_state['shared_state']['user_sessions'][user_id] = {
+            'last_active': time.time(),
+            'current_company': None,
+            'username': username
+        }
+    else:
+        global_state['shared_state']['user_sessions'][user_id]['username'] = username
+        global_state['shared_state']['user_sessions'][user_id]['last_active'] = time.time()
+    
+    # Initialize in leaderboard
     if username not in global_state['shared_state']['leaderboard']:
         global_state['shared_state']['leaderboard'][username] = {
             'reviews': 0,
@@ -188,7 +210,8 @@ def update_user_activity(user_id):
     if user_id not in global_state['shared_state']['user_sessions']:
         global_state['shared_state']['user_sessions'][user_id] = {
             'last_active': current_time,
-            'current_company': None
+            'current_company': None,
+            'username': None  # Will be set when username is provided
         }
     else:
         global_state['shared_state']['user_sessions'][user_id]['last_active'] = current_time
@@ -357,6 +380,17 @@ def get_current():
         'user_id': user_id[:8],
         'username': username,
         'user_stats': global_state['shared_state']['leaderboard'].get(username, {})
+    })
+
+@app.route('/api/check-username')
+def check_existing_username():
+    """Check if user already has a username"""
+    username = get_username()
+    user_id = get_user_id()
+    print(f"Checking username for user {user_id[:8]}: {username}")
+    return jsonify({
+        'has_username': username is not None,
+        'username': username
     })
 
 @app.route('/api/set-username', methods=['POST'])

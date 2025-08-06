@@ -796,6 +796,9 @@
                 // Start with buttons disabled
                 this.setButtonsEnabled(false);
                 
+                // Check if user already has a username
+                await this.checkExistingUsername();
+                
                 this.bindEvents();
                 this.bindKeyboardShortcuts();
                 await this.loadCurrent();
@@ -882,7 +885,11 @@
                     // Check if username is required
                     if (data.requires_username) {
                         console.log('Username required, showing modal');
-                        this.showUsernameModal();
+                        // Double-check if we already have a username
+                        const hasUsername = await this.checkExistingUsername();
+                        if (!hasUsername) {
+                            this.showUsernameModal();
+                        }
                         return;
                     }
                     
@@ -1018,6 +1025,23 @@
                 badgesElement.innerHTML = badges.map(badge => 
                     `<span class="achievement-badge">${badge}</span>`
                 ).join('');
+            }
+
+            async checkExistingUsername() {
+                try {
+                    const response = await fetch('/api/check-username');
+                    const data = await response.json();
+                    
+                    if (data.has_username && data.username) {
+                        console.log(`✅ Found existing username: ${data.username}`);
+                        // Don't show username modal if user already has one
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Error checking existing username:', error);
+                    return false;
+                }
             }
 
             showUsernameModal() {
