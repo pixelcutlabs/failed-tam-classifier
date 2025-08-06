@@ -21,7 +21,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-product
 CORS(app)
 
 # Configuration
-USER_SESSION_TIMEOUT = 300  # 5 minutes timeout for inactive sessions
+USER_SESSION_TIMEOUT = 120  # 2 minutes timeout for inactive sessions (reduced for better multi-user experience)
 
 # State file path (using /tmp for Vercel)
 STATE_FILE = '/tmp/review_state.json'
@@ -266,11 +266,30 @@ def mark_company_reviewed(user_id, company_index, liked):
     companies = load_companies()
     
     if company_index >= len(companies):
+        print(f"❌ Invalid company index {company_index}, max is {len(companies)-1}")
         return False
     
     # Verify user owns this assignment
     assignment = global_state['shared_state']['assigned_companies'].get(str(company_index))
-    if not assignment or assignment['user_id'] != user_id:
+    print(f"🔍 Checking assignment for company {company_index}: {assignment}")
+    print(f"🔍 User {user_id[:8]} trying to mark company {company_index}")
+    print(f"🔍 Current assignments: {list(global_state['shared_state']['assigned_companies'].keys())}")
+    
+    if not assignment:
+        print(f"❌ No assignment found for company {company_index}")
+        # Try to find any assignment for this user
+        user_assignments = [idx for idx, assign in global_state['shared_state']['assigned_companies'].items() 
+                          if assign['user_id'] == user_id]
+        print(f"🔍 User {user_id[:8]} has assignments: {user_assignments}")
+        
+        # If user has no assignments at all, their session might have been cleaned up
+        if not user_assignments:
+            print(f"🔄 User {user_id[:8]} has no assignments, session may have expired")
+        
+        return False
+        
+    if assignment['user_id'] != user_id:
+        print(f"❌ Assignment belongs to {assignment['user_id'][:8]}, not {user_id[:8]}")
         return False
     
     company = companies[company_index]
@@ -533,15 +552,20 @@ def test_endpoint():
 @app.route('/api/debug/assignments')
 def debug_assignments():
     """Debug endpoint to see current assignments"""
+    user_id = get_user_id()
     return jsonify({
+        'current_user': user_id[:8],
         'assigned_companies': global_state['shared_state']['assigned_companies'],
         'user_sessions': {uid: {
+            'username': data.get('username', 'Unknown'),
             'last_active': data['last_active'],
             'current_company': data.get('current_company', None),
             'time_since_active': time.time() - data['last_active']
         } for uid, data in global_state['shared_state']['user_sessions'].items()},
         'global_index': global_state['shared_state']['global_index'],
-        'total_companies': len(global_state['companies'])
+        'total_companies': len(global_state['companies']),
+        'current_user_assignments': [idx for idx, assign in global_state['shared_state']['assigned_companies'].items() 
+                                   if assign['user_id'] == user_id]
     })
 
 # Initialize data on startup

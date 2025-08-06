@@ -973,6 +973,16 @@
                     if (data.success) {
                         await this.loadCurrent();
                     } else {
+                        console.error('Mark company failed:', data);
+                        
+                        // If assignment expired, try to reload current company
+                        if (data.error && data.error.includes('assignment may have expired')) {
+                            console.log('🔄 Assignment expired, reloading current company...');
+                            alert('Your assignment has expired. Loading a new company...');
+                            await this.loadCurrent();
+                            return;
+                        }
+                        
                         alert('Error marking company: ' + data.error);
                     }
                 } catch (error) {
