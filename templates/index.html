@@ -799,7 +799,8 @@
                 this.setButtonsEnabled(false);
                 
                 // Check if user already has a username
-                await this.checkExistingUsername();
+                const hasUsername = await this.checkExistingUsername();
+                console.log(`Username check result: ${hasUsername}`);
                 
                 this.bindEvents();
                 this.bindKeyboardShortcuts();
@@ -1046,6 +1047,9 @@
                     
                     if (data.has_username && data.username) {
                         console.log(`✅ Found existing username: ${data.username}`);
+                        // Set the username in the UI
+                        this.username = data.username;
+                        document.getElementById('currentUsername').textContent = data.username;
                         // Don't show username modal if user already has one
                         return true;
                     }
@@ -1079,9 +1083,12 @@
                     const response = await fetch('/api/leaderboard');
                     const data = await response.json();
                     
+                    console.log('Leaderboard data:', data);
+                    
                     const leaderboardList = document.getElementById('leaderboardList');
                     
                     if (data.leaderboard.length === 0) {
+                        console.log('⚠️ No players in leaderboard - user might need to set username');
                         leaderboardList.innerHTML = '<div class="leaderboard-item"><div class="leaderboard-name">No players yet!</div></div>';
                         return;
                     }

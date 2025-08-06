@@ -197,9 +197,13 @@ def set_username(username):
             'disliked': 0,
             'last_active': time.time()
         }
+        print(f"✅ Added new user '{username}' to leaderboard")
     else:
         # Update last active time for existing user
         global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+        print(f"♻️ Updated existing user '{username}' in leaderboard")
+    
+    print(f"🏆 Current leaderboard after username set: {list(global_state['shared_state']['leaderboard'].keys())}")
     
     # Save state when username is set/updated
     save_state()
@@ -460,6 +464,9 @@ def get_leaderboard():
     """Get leaderboard data"""
     leaderboard = global_state['shared_state']['leaderboard']
     
+    print(f"🏆 Leaderboard request - found {len(leaderboard)} users in leaderboard")
+    print(f"🏆 Leaderboard data: {leaderboard}")
+    
     # Convert to list and sort by review count
     leaderboard_list = []
     for username, stats in leaderboard.items():
@@ -474,6 +481,8 @@ def get_leaderboard():
     
     # Sort by review count descending
     leaderboard_list.sort(key=lambda x: x['reviews'], reverse=True)
+    
+    print(f"🏆 Returning {len(leaderboard_list)} users in leaderboard")
     
     return jsonify({
         'leaderboard': leaderboard_list,
