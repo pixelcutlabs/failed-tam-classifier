@@ -247,6 +247,33 @@
             font-size: 1.3rem;
             text-align: center;
             font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel h3:hover {
+            color: #d84315;
+        }
+
+        .instructions-toggle {
+            font-size: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .instructions-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .instructions-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
         }
 
         .instruction-item {
@@ -587,38 +614,43 @@
         <div id="mainContent" class="main-content" style="display: none;">
             <div class="website-panel">
                 <div class="instructions-panel">
-                    <h3>📋 Review Instructions</h3>
+                    <h3 onclick="toggleInstructions()">
+                        📋 Review Instructions 
+                        <span class="instructions-toggle" id="instructionsToggle">▼</span>
+                    </h3>
                     
-                    <div class="instruction-item">
-                        <span class="instruction-icon">🔗</span>
-                        <span><strong>Make sure to click on the link for websites that won't load in the app.</strong></span>
-                    </div>
-                    
-                    <div class="good-criteria">
-                        <div class="criteria-title">👍 Click "Good" for:</div>
+                    <div class="instructions-content" id="instructionsContent">
                         <div class="instruction-item">
-                            <span class="instruction-icon">✈️</span>
-                            <span>Travel companies that we'd want to work with</span>
+                            <span class="instruction-icon">🔗</span>
+                            <span><strong>Make sure to click on the link for websites that won't load in the app.</strong></span>
                         </div>
-                    </div>
-                    
-                    <div class="bad-criteria">
-                        <div class="criteria-title">👎 Click "Bad" for:</div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">🚫</span>
-                            <span>Companies that are NOT travel-related</span>
+                        
+                        <div class="good-criteria">
+                            <div class="criteria-title">👍 Click "Good" for:</div>
+                            <div class="instruction-item">
+                                <span class="instruction-icon">✈️</span>
+                                <span>Travel companies that we'd want to work with</span>
+                            </div>
                         </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">😵</span>
-                            <span>Websites with horrible user experiences</span>
-                        </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">🌍</span>
-                            <span>Websites that are in a different language</span>
-                        </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">⚠️</span>
-                            <span>Anything that you think is a no-no</span>
+                        
+                        <div class="bad-criteria">
+                            <div class="criteria-title">👎 Click "Bad" for:</div>
+                            <div class="instruction-item">
+                                <span class="instruction-icon">🚫</span>
+                                <span>Companies that are NOT travel-related</span>
+                            </div>
+                            <div class="instruction-item">
+                                <span class="instruction-icon">😵</span>
+                                <span>Websites with horrible user experiences</span>
+                            </div>
+                            <div class="instruction-item">
+                                <span class="instruction-icon">🌍</span>
+                                <span>Websites that are in a different language</span>
+                            </div>
+                            <div class="instruction-item">
+                                <span class="instruction-icon">⚠️</span>
+                                <span>Anything that you think is a no-no</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1105,6 +1137,22 @@
         document.addEventListener('DOMContentLoaded', () => {
             websiteReviewer = new WebsiteReviewer();
         });
+
+        // Instructions toggle function
+        function toggleInstructions() {
+            const content = document.getElementById('instructionsContent');
+            const toggle = document.getElementById('instructionsToggle');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggle.textContent = '▼';
+                toggle.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('collapsed');
+                toggle.textContent = '▲';
+                toggle.style.transform = 'rotate(180deg)';
+            }
+        }
 
         // Username submission function
         async function submitUsername() {
