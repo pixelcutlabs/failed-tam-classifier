@@ -118,6 +118,11 @@ def get_username():
     """Get username from session"""
     return session.get('username', None)
 
+def is_username_set():
+    """Check if username is set in session"""
+    username = session.get('username', None)
+    return username is not None and username.strip() != ''
+
 def set_username(username):
     """Set username in session and initialize in leaderboard"""
     session['username'] = username
@@ -154,24 +159,38 @@ def get_next_available_company(user_id):
         if assignment['user_id'] == user_id:
             company_idx = int(company_index)
             if company_idx < len(companies):
+                print(f"User {user_id[:8]} returning to existing assignment: {company_idx}")
                 return companies[company_idx], company_idx
     
-    # Find next unassigned company
-    while global_state['shared_state']['global_index'] < len(companies):
-        current_index = global_state['shared_state']['global_index']
-        
+    # Find next unassigned company starting from global_index
+    search_index = global_state['shared_state']['global_index']
+    max_search = min(search_index + 100, len(companies))  # Limit search to prevent infinite loops
+    
+    while search_index < max_search:
         # Check if this company is already assigned
-        if str(current_index) not in global_state['shared_state']['assigned_companies']:
+        if str(search_index) not in global_state['shared_state']['assigned_companies']:
             # Assign to current user
-            global_state['shared_state']['assigned_companies'][str(current_index)] = {
+            global_state['shared_state']['assigned_companies'][str(search_index)] = {
                 'user_id': user_id,
                 'assigned_at': time.time()
             }
-            global_state['shared_state']['user_sessions'][user_id]['current_company'] = current_index
-            return companies[current_index], current_index
+            global_state['shared_state']['user_sessions'][user_id]['current_company'] = search_index
+            
+            # Only advance global index if we assigned the next expected company
+            if search_index == global_state['shared_state']['global_index']:
+                global_state['shared_state']['global_index'] += 1
+            
+            print(f"Assigned company {search_index} to user {user_id[:8]}")
+            return companies[search_index], search_index
         
-        global_state['shared_state']['global_index'] += 1
+        search_index += 1
     
+    # If we couldn't find anything in the immediate range, advance global index and try again
+    if global_state['shared_state']['global_index'] < len(companies):
+        global_state['shared_state']['global_index'] += 1
+        return get_next_available_company(user_id)
+    
+    print(f"No available companies found for user {user_id[:8]}")
     return None, None
 
 def mark_company_reviewed(user_id, company_index, liked):
@@ -255,8 +274,11 @@ def get_current():
     user_id = get_user_id()
     username = get_username()
     
+    print(f"API /current called - User ID: {user_id[:8]}, Username: {username}")
+    
     # If no username set, require it
-    if not username:
+    if not is_username_set():
+        print(f"No username set for user {user_id[:8]}, requiring username")
         return jsonify({
             'requires_username': True,
             'progress': get_progress_stats()
@@ -264,6 +286,8 @@ def get_current():
     
     company, company_index = get_next_available_company(user_id)
     progress = get_progress_stats()
+    
+    print(f"User {username} assigned company index: {company_index}")
     
     if company is None:
         return jsonify({
@@ -414,6 +438,20 @@ def test_endpoint():
         'message': 'API is working!',
         'companies_loaded': len(global_state['companies']),
         'environment': 'vercel' if os.environ.get('VERCEL') else 'local'
+    })
+
+@app.route('/api/debug/assignments')
+def debug_assignments():
+    """Debug endpoint to see current assignments"""
+    return jsonify({
+        'assigned_companies': global_state['shared_state']['assigned_companies'],
+        'user_sessions': {uid: {
+            'last_active': data['last_active'],
+            'current_company': data.get('current_company', None),
+            'time_since_active': time.time() - data['last_active']
+        } for uid, data in global_state['shared_state']['user_sessions'].items()},
+        'global_index': global_state['shared_state']['global_index'],
+        'total_companies': len(global_state['companies'])
     })
 
 # Initialize data on startup

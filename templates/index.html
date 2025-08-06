@@ -608,6 +608,7 @@
             Loading website data...
             <br><br>
             <button onclick="testAPI()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Test API Connection</button>
+            <button onclick="debugAssignments()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Debug Multi-User</button>
             <div id="testResult" style="margin-top: 1rem; font-size: 0.9rem;"></div>
         </div>
 
@@ -880,6 +881,7 @@
                     
                     // Check if username is required
                     if (data.requires_username) {
+                        console.log('Username required, showing modal');
                         this.showUsernameModal();
                         return;
                     }
@@ -1188,6 +1190,41 @@
             } catch (error) {
                 console.error('Error setting username:', error);
                 alert('Error setting username. Please try again.');
+            }
+        }
+
+        // Debug assignments function
+        async function debugAssignments() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = 'Loading assignment debug info...';
+            
+            try {
+                const response = await fetch('/api/debug/assignments');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <h4>Multi-User Debug Info:</h4>
+                    <strong>Global Index:</strong> ${data.global_index}<br>
+                    <strong>Total Companies:</strong> ${data.total_companies}<br>
+                    <strong>Assigned Companies:</strong> ${Object.keys(data.assigned_companies).length}<br>
+                    <strong>Active Sessions:</strong> ${Object.keys(data.user_sessions).length}<br><br>
+                    
+                    <strong>Current Assignments:</strong><br>
+                    ${Object.entries(data.assigned_companies).map(([index, assignment]) => 
+                        `Company ${index}: User ${assignment.user_id.substring(0,8)}<br>`
+                    ).join('')}
+                    
+                    <br><strong>User Sessions:</strong><br>
+                    ${Object.entries(data.user_sessions).map(([uid, session]) => 
+                        `User ${uid.substring(0,8)}: Company ${session.current_company}, Active ${Math.round(session.time_since_active)}s ago<br>`
+                    ).join('')}
+                `;
+                resultDiv.style.color = 'black';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Debug Failed: ${error.message}`;
+                resultDiv.style.color = 'red';
+                console.error('Debug Error:', error);
             }
         }
 
