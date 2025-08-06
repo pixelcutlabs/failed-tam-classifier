@@ -760,6 +760,9 @@
             }
 
             async init() {
+                // Start with buttons disabled
+                this.setButtonsEnabled(false);
+                
                 this.bindEvents();
                 this.bindKeyboardShortcuts();
                 await this.loadCurrent();
@@ -791,6 +794,22 @@
             bindKeyboardShortcuts() {
                 document.addEventListener('keydown', (e) => {
                     if (this.isLoading) return;
+                    
+                    // Don't trigger shortcuts if user is typing in an input field
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                        return;
+                    }
+                    
+                    // Don't trigger if username modal is open
+                    const usernameModal = document.getElementById('usernameModal');
+                    if (usernameModal && usernameModal.style.display !== 'none') {
+                        return;
+                    }
+                    
+                    // Don't trigger if no company is loaded
+                    if (!this.currentCompany || this.currentCompanyIndex === null || this.currentCompanyIndex === undefined) {
+                        return;
+                    }
                     
                     switch(e.key.toLowerCase()) {
                         case 'g':
@@ -971,12 +990,18 @@
                 document.getElementById('usernameModal').style.display = 'flex';
                 document.getElementById('usernameInput').focus();
                 
+                // Disable buttons while modal is open
+                this.setButtonsEnabled(false);
+                
                 // Allow Enter key to submit
-                document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+                const usernameInput = document.getElementById('usernameInput');
+                const handleEnter = (e) => {
                     if (e.key === 'Enter') {
                         submitUsername();
+                        usernameInput.removeEventListener('keypress', handleEnter);
                     }
-                });
+                };
+                usernameInput.addEventListener('keypress', handleEnter);
             }
 
             async loadLeaderboard() {
