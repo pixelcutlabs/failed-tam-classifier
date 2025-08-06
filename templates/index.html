@@ -843,6 +843,14 @@
                         this.userId = data.user_id;
                         this.username = data.username;
                         this.userStats = data.user_stats || {};
+                        
+                        console.log('Loaded company data:', {
+                            company_index: this.currentCompanyIndex,
+                            company_name: data.company?.company_name,
+                            user_id: this.userId,
+                            username: this.username
+                        });
+                        
                         this.displayCompany(data.company);
                         this.updateUserInfo();
                         this.showMainContent();
@@ -871,6 +879,19 @@
 
             async markCompany(liked) {
                 if (this.isLoading) return;
+                
+                // Debug logging
+                console.log('Marking company:', {
+                    liked: liked,
+                    currentCompanyIndex: this.currentCompanyIndex,
+                    currentCompany: this.currentCompany
+                });
+                
+                if (this.currentCompanyIndex === null || this.currentCompanyIndex === undefined) {
+                    console.error('No company index available');
+                    alert('Error: No company selected. Please refresh the page.');
+                    return;
+                }
                 
                 this.isLoading = true;
                 this.setButtonsEnabled(false);
@@ -1087,7 +1108,7 @@
                     websiteReviewer.username = data.username;
                     websiteReviewer.userStats = data.user_stats || {};
                     websiteReviewer.updateUserInfo();
-                    websiteReviewer.loadCurrent();
+                    await websiteReviewer.loadCurrent();
                 } else {
                     alert('Error setting username: ' + data.error);
                 }
