@@ -31,6 +31,7 @@ global_state = {
         'assigned_companies': {},
         'completed_reviews': {'liked': [], 'disliked': []},
         'user_sessions': {},
+        'leaderboard': {},  # {username: {'reviews': count, 'liked': count, 'disliked': count, 'last_active': timestamp}}
         'last_updated': None
     }
 }
@@ -113,6 +114,24 @@ def get_user_id():
         session['user_id'] = str(uuid.uuid4())
     return session['user_id']
 
+def get_username():
+    """Get username from session"""
+    return session.get('username', None)
+
+def set_username(username):
+    """Set username in session and initialize in leaderboard"""
+    session['username'] = username
+    if username not in global_state['shared_state']['leaderboard']:
+        global_state['shared_state']['leaderboard'][username] = {
+            'reviews': 0,
+            'liked': 0,
+            'disliked': 0,
+            'last_active': time.time()
+        }
+    else:
+        # Update last active time for existing user
+        global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+
 def update_user_activity(user_id):
     """Update user's last activity timestamp"""
     current_time = time.time()
@@ -175,6 +194,17 @@ def mark_company_reviewed(user_id, company_index, liked):
     else:
         global_state['shared_state']['completed_reviews']['disliked'].append(company)
     
+    # Update leaderboard for the user
+    username = get_username()
+    if username:
+        if username in global_state['shared_state']['leaderboard']:
+            global_state['shared_state']['leaderboard'][username]['reviews'] += 1
+            if liked:
+                global_state['shared_state']['leaderboard'][username]['liked'] += 1
+            else:
+                global_state['shared_state']['leaderboard'][username]['disliked'] += 1
+            global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+    
     # Remove assignment
     del global_state['shared_state']['assigned_companies'][str(company_index)]
     
@@ -223,13 +253,24 @@ def admin():
 def get_current():
     """Get current company for the user"""
     user_id = get_user_id()
+    username = get_username()
+    
+    # If no username set, require it
+    if not username:
+        return jsonify({
+            'requires_username': True,
+            'progress': get_progress_stats()
+        })
+    
     company, company_index = get_next_available_company(user_id)
     progress = get_progress_stats()
     
     if company is None:
         return jsonify({
             'finished': True,
-            'progress': progress
+            'progress': progress,
+            'username': username,
+            'user_stats': global_state['shared_state']['leaderboard'].get(username, {})
         })
     
     return jsonify({
@@ -237,7 +278,29 @@ def get_current():
         'company': company,
         'company_index': company_index,
         'progress': progress,
-        'user_id': user_id[:8]
+        'user_id': user_id[:8],
+        'username': username,
+        'user_stats': global_state['shared_state']['leaderboard'].get(username, {})
+    })
+
+@app.route('/api/set-username', methods=['POST'])
+def set_user_name():
+    """Set username for the current session"""
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    
+    if not username:
+        return jsonify({'success': False, 'error': 'Username is required'})
+    
+    # Sanitize username
+    username = username[:50]  # Max 50 characters
+    
+    set_username(username)
+    
+    return jsonify({
+        'success': True,
+        'username': username,
+        'user_stats': global_state['shared_state']['leaderboard'].get(username, {})
     })
 
 @app.route('/api/mark', methods=['POST'])
@@ -262,6 +325,31 @@ def mark_company():
 def get_progress():
     """Get current progress statistics"""
     return jsonify(get_progress_stats())
+
+@app.route('/api/leaderboard')
+def get_leaderboard():
+    """Get leaderboard data"""
+    leaderboard = global_state['shared_state']['leaderboard']
+    
+    # Convert to list and sort by review count
+    leaderboard_list = []
+    for username, stats in leaderboard.items():
+        leaderboard_list.append({
+            'username': username,
+            'reviews': stats['reviews'],
+            'liked': stats['liked'],
+            'disliked': stats['disliked'],
+            'accuracy': round((stats['liked'] / stats['reviews']) * 100, 1) if stats['reviews'] > 0 else 0,
+            'last_active': stats['last_active']
+        })
+    
+    # Sort by review count descending
+    leaderboard_list.sort(key=lambda x: x['reviews'], reverse=True)
+    
+    return jsonify({
+        'leaderboard': leaderboard_list,
+        'total_users': len(leaderboard_list)
+    })
 
 @app.route('/api/export/<category>')
 def export_csv(category):
@@ -301,9 +389,10 @@ def admin_reset():
         'assigned_companies': {},
         'completed_reviews': {'liked': [], 'disliked': []},
         'user_sessions': {},
+        'leaderboard': {},
         'last_updated': datetime.now().isoformat()
     }
-    return jsonify({'success': True, 'message': 'All progress reset successfully'})
+    return jsonify({'success': True, 'message': 'All progress and leaderboard reset successfully'})
 
 @app.route('/api/admin/stats')
 def admin_stats():

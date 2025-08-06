@@ -232,6 +232,149 @@
             font-size: 0.9rem;
         }
 
+        .username-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .username-modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .username-modal h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .username-modal p {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        .username-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .username-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .leaderboard-panel {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .leaderboard-panel h3 {
+            color: #e65100;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.3rem;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .leaderboard-rank {
+            font-weight: bold;
+            color: #e65100;
+            width: 30px;
+        }
+
+        .leaderboard-name {
+            flex: 1;
+            text-align: left;
+            padding-left: 0.5rem;
+            font-weight: 600;
+        }
+
+        .leaderboard-score {
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .user-stats {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .user-stats h3 {
+            color: #2e7d32;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .stat-circle {
+            display: inline-block;
+            background: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 0.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .achievement-badge {
+            background: linear-gradient(135deg, #ffd700, #ffb300);
+            color: #333;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin: 0.25rem;
+            display: inline-block;
+        }
+
         .stat-label {
             color: #666;
         }
@@ -360,6 +503,16 @@
     </style>
 </head>
 <body>
+    <!-- Username Modal -->
+    <div id="usernameModal" class="username-modal" style="display: none;">
+        <div class="username-modal-content">
+            <h2>🎮 Welcome to the Game!</h2>
+            <p>Enter your name to join the leaderboard and compete with your team!</p>
+            <input type="text" id="usernameInput" class="username-input" placeholder="Enter your name..." maxlength="50">
+            <button onclick="submitUsername()" class="btn btn-primary" style="width: 100%;">Start Reviewing! 🚀</button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>Website Review Tool</h1>
@@ -393,11 +546,32 @@
 
             <div class="controls-panel">
                 <div class="crowdsource-banner">
-                    🌟 Crowdsourced Review • Multiple users working together
+                    🌟 Crowdsourced Review • Multiple users competing!
                 </div>
                 
-                <div class="user-info">
-                    👤 Your ID: <span id="userId">Loading...</span>
+                <div class="user-stats" id="userStatsPanel">
+                    <h3>🏆 <span id="currentUsername">Player</span>'s Stats</h3>
+                    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
+                        <div class="stat-circle">
+                            <div>
+                                <div class="stat-number" id="userReviews">0</div>
+                                <div class="stat-label">Reviews</div>
+                            </div>
+                        </div>
+                        <div class="stat-circle">
+                            <div>
+                                <div class="stat-number" id="userLiked">0</div>
+                                <div class="stat-label">Liked</div>
+                            </div>
+                        </div>
+                        <div class="stat-circle">
+                            <div>
+                                <div class="stat-number" id="userDisliked">0</div>
+                                <div class="stat-label">Disliked</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="userBadges" style="margin-top: 1rem;"></div>
                 </div>
 
                 <div class="action-buttons">
@@ -421,8 +595,19 @@
                     </div>
                 </div>
 
+                <div class="leaderboard-panel">
+                    <h3>🏆 Leaderboard</h3>
+                    <div id="leaderboardList">
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-rank">-</div>
+                            <div class="leaderboard-name">Loading...</div>
+                            <div class="leaderboard-score">-</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stats">
-                    <h3>Progress</h3>
+                    <h3>Global Progress</h3>
                     <div class="stat-row">
                         <span class="stat-label">Completed:</span>
                         <span class="stat-value" id="completedCount">0</span>
@@ -477,6 +662,8 @@
                 this.currentCompany = null;
                 this.currentCompanyIndex = null;
                 this.userId = null;
+                this.username = null;
+                this.userStats = {};
                 this.isLoading = false;
                 this.init();
             }
@@ -485,6 +672,10 @@
                 this.bindEvents();
                 this.bindKeyboardShortcuts();
                 await this.loadCurrent();
+                this.loadLeaderboard();
+                
+                // Refresh leaderboard every 10 seconds
+                setInterval(() => this.loadLeaderboard(), 10000);
             }
 
             bindEvents() {
@@ -545,6 +736,12 @@
                     const data = await response.json();
                     console.log('API Response:', data);
                     
+                    // Check if username is required
+                    if (data.requires_username) {
+                        this.showUsernameModal();
+                        return;
+                    }
+                    
                     this.updateProgress(data.progress);
                     
                     if (data.finished) {
@@ -553,6 +750,8 @@
                         this.currentCompany = data.company;
                         this.currentCompanyIndex = data.company_index;
                         this.userId = data.user_id;
+                        this.username = data.username;
+                        this.userStats = data.user_stats || {};
                         this.displayCompany(data.company);
                         this.updateUserInfo();
                         this.showMainContent();
@@ -627,8 +826,75 @@
             }
 
             updateUserInfo() {
-                if (this.userId) {
-                    document.getElementById('userId').textContent = this.userId;
+                if (this.username) {
+                    document.getElementById('currentUsername').textContent = this.username;
+                    document.getElementById('userReviews').textContent = this.userStats.reviews || 0;
+                    document.getElementById('userLiked').textContent = this.userStats.liked || 0;
+                    document.getElementById('userDisliked').textContent = this.userStats.disliked || 0;
+                    
+                    // Add achievement badges
+                    this.updateBadges();
+                }
+            }
+
+            updateBadges() {
+                const badges = [];
+                const reviews = this.userStats.reviews || 0;
+                const liked = this.userStats.liked || 0;
+                
+                if (reviews >= 1) badges.push('🎯 First Review');
+                if (reviews >= 10) badges.push('🔥 10 Reviews');
+                if (reviews >= 50) badges.push('⚡ Speed Demon');
+                if (reviews >= 100) badges.push('🏆 Century Club');
+                if (liked >= 25) badges.push('❤️ Optimist');
+                if (reviews - liked >= 25) badges.push('🔍 Critic');
+                
+                const badgesElement = document.getElementById('userBadges');
+                badgesElement.innerHTML = badges.map(badge => 
+                    `<span class="achievement-badge">${badge}</span>`
+                ).join('');
+            }
+
+            showUsernameModal() {
+                document.getElementById('usernameModal').style.display = 'flex';
+                document.getElementById('usernameInput').focus();
+                
+                // Allow Enter key to submit
+                document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        submitUsername();
+                    }
+                });
+            }
+
+            async loadLeaderboard() {
+                try {
+                    const response = await fetch('/api/leaderboard');
+                    const data = await response.json();
+                    
+                    const leaderboardList = document.getElementById('leaderboardList');
+                    
+                    if (data.leaderboard.length === 0) {
+                        leaderboardList.innerHTML = '<div class="leaderboard-item"><div class="leaderboard-name">No players yet!</div></div>';
+                        return;
+                    }
+                    
+                    leaderboardList.innerHTML = data.leaderboard.slice(0, 5).map((player, index) => {
+                        const rank = index + 1;
+                        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                        const isCurrentUser = player.username === this.username;
+                        
+                        return `
+                            <div class="leaderboard-item" style="${isCurrentUser ? 'background: linear-gradient(135deg, #e8f5e8, #c8e6c9); font-weight: bold;' : ''}">
+                                <div class="leaderboard-rank">${medal}</div>
+                                <div class="leaderboard-name">${player.username}${isCurrentUser ? ' (You)' : ''}</div>
+                                <div class="leaderboard-score">${player.reviews}</div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                } catch (error) {
+                    console.error('Error loading leaderboard:', error);
                 }
             }
 
@@ -698,9 +964,47 @@
         }
 
         // Initialize the application
+        let websiteReviewer;
         document.addEventListener('DOMContentLoaded', () => {
-            new WebsiteReviewer();
+            websiteReviewer = new WebsiteReviewer();
         });
+
+        // Username submission function
+        async function submitUsername() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+            
+            if (!username) {
+                alert('Please enter your name!');
+                usernameInput.focus();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/set-username', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('usernameModal').style.display = 'none';
+                    websiteReviewer.username = data.username;
+                    websiteReviewer.userStats = data.user_stats || {};
+                    websiteReviewer.updateUserInfo();
+                    websiteReviewer.loadCurrent();
+                } else {
+                    alert('Error setting username: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error setting username:', error);
+                alert('Error setting username. Please try again.');
+            }
+        }
 
         // Test API function for debugging
         async function testAPI() {

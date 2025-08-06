@@ -269,6 +269,15 @@
         </div>
 
         <div class="details-section">
+            <h2>🏆 Leaderboard</h2>
+            <div id="adminLeaderboard" style="margin-bottom: 2rem;">
+                <div class="detail-row">
+                    <span class="detail-label">Loading leaderboard...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="details-section">
             <h2>Detailed Statistics</h2>
             <div class="detail-row">
                 <span class="detail-label">Liked Websites:</span>
@@ -321,9 +330,40 @@
                 // Update refresh time
                 document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
                 
+                // Load leaderboard
+                loadLeaderboard();
+                
             } catch (error) {
                 console.error('Error loading stats:', error);
                 document.getElementById('lastUpdated').textContent = 'Error loading data';
+            }
+        }
+
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard');
+                const data = await response.json();
+                
+                const leaderboardDiv = document.getElementById('adminLeaderboard');
+                
+                if (data.leaderboard.length === 0) {
+                    leaderboardDiv.innerHTML = '<div class="detail-row"><span class="detail-label">No players yet</span></div>';
+                    return;
+                }
+                
+                leaderboardDiv.innerHTML = data.leaderboard.map((player, index) => {
+                    const rank = index + 1;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                    return `
+                        <div class="detail-row">
+                            <span class="detail-label">${medal} ${player.username}</span>
+                            <span class="detail-value">${player.reviews} reviews (${player.liked}❤️ ${player.disliked}👎)</span>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
             }
         }
 
