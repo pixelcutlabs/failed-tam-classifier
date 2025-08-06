@@ -372,6 +372,9 @@
         <div id="loadingScreen" class="loading">
             <div class="spinner"></div>
             Loading website data...
+            <br><br>
+            <button onclick="testAPI()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Test API Connection</button>
+            <div id="testResult" style="margin-top: 1rem; font-size: 0.9rem;"></div>
         </div>
 
         <div id="mainContent" class="main-content" style="display: none;">
@@ -531,8 +534,16 @@
                 this.setButtonsEnabled(false);
                 
                 try {
+                    console.log('Fetching /api/current...');
                     const response = await fetch('/api/current');
+                    console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
+                    console.log('API Response:', data);
                     
                     this.updateProgress(data.progress);
                     
@@ -690,6 +701,39 @@
         document.addEventListener('DOMContentLoaded', () => {
             new WebsiteReviewer();
         });
+
+        // Test API function for debugging
+        async function testAPI() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = 'Testing API connection...';
+            
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                resultDiv.innerHTML = `✅ API Working! Environment: ${data.environment}, Companies: ${data.companies_loaded}`;
+                resultDiv.style.color = 'green';
+                
+                // If test works, try the main endpoint
+                setTimeout(async () => {
+                    try {
+                        const currentResponse = await fetch('/api/current');
+                        const currentData = await currentResponse.json();
+                        resultDiv.innerHTML += '<br>✅ Main API endpoint also working!';
+                        
+                        // Reload the page to try again
+                        setTimeout(() => location.reload(), 2000);
+                    } catch (error) {
+                        resultDiv.innerHTML += `<br>❌ Main API failed: ${error.message}`;
+                        resultDiv.style.color = 'red';
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ API Connection Failed: ${error.message}`;
+                resultDiv.style.color = 'red';
+                console.error('API Test Error:', error);
+            }
+        }
     </script>
 </body>
 </html>

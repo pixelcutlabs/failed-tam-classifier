@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""
+Website Review Tool - Vercel Serverless Function
+"""
+
+import csv
+import json
+import os
+import uuid
+import time
+from datetime import datetime
+from flask import Flask, render_template, jsonify, request, send_file, session
+from flask_cors import CORS
+import io
+import tempfile
+
+app = Flask(__name__, template_folder='../templates')
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+
+# Enable CORS for all routes
+CORS(app)
+
+# Configuration
+USER_SESSION_TIMEOUT = 300  # 5 minutes timeout for inactive sessions
+
+# Global state (in-memory for Vercel)
+global_state = {
+    'companies': [],
+    'shared_state': {
+        'global_index': 0,
+        'assigned_companies': {},
+        'completed_reviews': {'liked': [], 'disliked': []},
+        'user_sessions': {},
+        'last_updated': None
+    }
+}
+
+def load_companies():
+    """Load companies from CSV - for Vercel, we'll embed the data"""
+    if global_state['companies']:
+        return global_state['companies']
+    
+    # Try to load from file (local development)
+    csv_path = os.path.join(os.path.dirname(__file__), '..', 'b2c_failures_review.csv')
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                global_state['companies'] = list(reader)
+                print(f"Loaded {len(global_state['companies'])} companies from file")
+                return global_state['companies']
+        except Exception as e:
+            print(f"Error loading CSV: {e}")
+    
+    # Fallback: Sample data for demo
+    global_state['companies'] = [
+        {
+            'company_name': 'Sample Company 1',
+            'website': 'https://example.com',
+            'country': 'United States',
+            'employee_count': '100',
+            'industry': 'Technology',
+            'travel_category': '',
+            'page_title': 'Sample Company 1',
+            'b2c_score': 'Unknown',
+            'b2c_reasoning': 'Demo data',
+            'source_file': 'demo',
+            'line_number': '1'
+        },
+        {
+            'company_name': 'Sample Company 2', 
+            'website': 'https://google.com',
+            'country': 'United States',
+            'employee_count': '50',
+            'industry': 'Technology',
+            'travel_category': '',
+            'page_title': 'Sample Company 2',
+            'b2c_score': 'Unknown',
+            'b2c_reasoning': 'Demo data',
+            'source_file': 'demo',
+            'line_number': '2'
+        }
+    ]
+    print(f"Loaded {len(global_state['companies'])} sample companies for demo")
+    return global_state['companies']
+
+def cleanup_expired_sessions():
+    """Remove expired user sessions and release their assigned companies"""
+    current_time = time.time()
+    expired_users = []
+    
+    for user_id, session_data in global_state['shared_state']['user_sessions'].items():
+        if current_time - session_data['last_active'] > USER_SESSION_TIMEOUT:
+            expired_users.append(user_id)
+    
+    for user_id in expired_users:
+        release_user_assignments(user_id)
+        del global_state['shared_state']['user_sessions'][user_id]
+
+def release_user_assignments(user_id):
+    """Release all companies assigned to a specific user"""
+    assignments_to_remove = []
+    for company_index, assignment in global_state['shared_state']['assigned_companies'].items():
+        if assignment['user_id'] == user_id:
+            assignments_to_remove.append(company_index)
+    
+    for company_index in assignments_to_remove:
+        del global_state['shared_state']['assigned_companies'][str(company_index)]
+
+def get_user_id():
+    """Get or create user ID from session"""
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    return session['user_id']
+
+def update_user_activity(user_id):
+    """Update user's last activity timestamp"""
+    current_time = time.time()
+    if user_id not in global_state['shared_state']['user_sessions']:
+        global_state['shared_state']['user_sessions'][user_id] = {
+            'last_active': current_time,
+            'current_company': None
+        }
+    else:
+        global_state['shared_state']['user_sessions'][user_id]['last_active'] = current_time
+
+def get_next_available_company(user_id):
+    """Get the next available company for a user"""
+    companies = load_companies()
+    cleanup_expired_sessions()
+    update_user_activity(user_id)
+    
+    # Check if user already has an assigned company
+    for company_index, assignment in global_state['shared_state']['assigned_companies'].items():
+        if assignment['user_id'] == user_id:
+            company_idx = int(company_index)
+            if company_idx < len(companies):
+                return companies[company_idx], company_idx
+    
+    # Find next unassigned company
+    while global_state['shared_state']['global_index'] < len(companies):
+        current_index = global_state['shared_state']['global_index']
+        
+        # Check if this company is already assigned
+        if str(current_index) not in global_state['shared_state']['assigned_companies']:
+            # Assign to current user
+            global_state['shared_state']['assigned_companies'][str(current_index)] = {
+                'user_id': user_id,
+                'assigned_at': time.time()
+            }
+            global_state['shared_state']['user_sessions'][user_id]['current_company'] = current_index
+            return companies[current_index], current_index
+        
+        global_state['shared_state']['global_index'] += 1
+    
+    return None, None
+
+def mark_company_reviewed(user_id, company_index, liked):
+    """Mark a company as reviewed and remove assignment"""
+    companies = load_companies()
+    
+    if company_index >= len(companies):
+        return False
+    
+    # Verify user owns this assignment
+    assignment = global_state['shared_state']['assigned_companies'].get(str(company_index))
+    if not assignment or assignment['user_id'] != user_id:
+        return False
+    
+    company = companies[company_index]
+    
+    # Add review to completed reviews
+    if liked:
+        global_state['shared_state']['completed_reviews']['liked'].append(company)
+    else:
+        global_state['shared_state']['completed_reviews']['disliked'].append(company)
+    
+    # Remove assignment
+    del global_state['shared_state']['assigned_companies'][str(company_index)]
+    
+    # Update user session
+    if user_id in global_state['shared_state']['user_sessions']:
+        global_state['shared_state']['user_sessions'][user_id]['current_company'] = None
+    
+    # Advance global index if this was the next expected company
+    if company_index == global_state['shared_state']['global_index']:
+        global_state['shared_state']['global_index'] += 1
+    
+    global_state['shared_state']['last_updated'] = datetime.now().isoformat()
+    return True
+
+def get_progress_stats():
+    """Get overall progress statistics"""
+    companies = load_companies()
+    total_companies = len(companies)
+    completed = len(global_state['shared_state']['completed_reviews']['liked']) + len(global_state['shared_state']['completed_reviews']['disliked'])
+    assigned = len(global_state['shared_state']['assigned_companies'])
+    active_users = len([u for u in global_state['shared_state']['user_sessions'].values() 
+                       if time.time() - u['last_active'] < USER_SESSION_TIMEOUT])
+    
+    return {
+        'total': total_companies,
+        'completed': completed,
+        'assigned': assigned,
+        'remaining': total_companies - completed - assigned,
+        'liked_count': len(global_state['shared_state']['completed_reviews']['liked']),
+        'disliked_count': len(global_state['shared_state']['completed_reviews']['disliked']),
+        'active_users': active_users,
+        'progress_percent': round((completed / total_companies) * 100, 1) if total_companies > 0 else 0
+    }
+
+@app.route('/')
+def index():
+    """Main review interface"""
+    return render_template('index.html')
+
+@app.route('/admin')
+def admin():
+    """Admin dashboard"""
+    return render_template('admin.html')
+
+@app.route('/api/current')
+def get_current():
+    """Get current company for the user"""
+    user_id = get_user_id()
+    company, company_index = get_next_available_company(user_id)
+    progress = get_progress_stats()
+    
+    if company is None:
+        return jsonify({
+            'finished': True,
+            'progress': progress
+        })
+    
+    return jsonify({
+        'finished': False,
+        'company': company,
+        'company_index': company_index,
+        'progress': progress,
+        'user_id': user_id[:8]
+    })
+
+@app.route('/api/mark', methods=['POST'])
+def mark_company():
+    """Mark current company as liked or disliked"""
+    data = request.get_json()
+    liked = data.get('liked', False)
+    company_index = data.get('company_index')
+    
+    if company_index is None:
+        return jsonify({'success': False, 'error': 'No company index provided'})
+    
+    user_id = get_user_id()
+    success = mark_company_reviewed(user_id, company_index, liked)
+    
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Unable to mark company - assignment may have expired'})
+
+@app.route('/api/progress')
+def get_progress():
+    """Get current progress statistics"""
+    return jsonify(get_progress_stats())
+
+@app.route('/api/export/<category>')
+def export_csv(category):
+    """Export liked or disliked companies"""
+    if category not in ['liked', 'disliked']:
+        return jsonify({'error': 'Invalid category'}), 400
+    
+    data = global_state['shared_state']['completed_reviews'][category]
+    
+    if not data:
+        return jsonify({'error': f'No {category} companies to export'}), 400
+    
+    # Create CSV content
+    output = io.StringIO()
+    if data:
+        writer = csv.DictWriter(output, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
+    
+    # Create response
+    csv_content = output.getvalue()
+    output.close()
+    
+    response = app.response_class(
+        csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={category}_websites_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
+    )
+    
+    return response
+
+@app.route('/api/admin/reset', methods=['POST'])
+def admin_reset():
+    """Reset all progress (admin only)"""
+    global_state['shared_state'] = {
+        'global_index': 0,
+        'assigned_companies': {},
+        'completed_reviews': {'liked': [], 'disliked': []},
+        'user_sessions': {},
+        'last_updated': datetime.now().isoformat()
+    }
+    return jsonify({'success': True, 'message': 'All progress reset successfully'})
+
+@app.route('/api/admin/stats')
+def admin_stats():
+    """Get detailed admin statistics"""
+    stats = get_progress_stats()
+    stats['detailed'] = {
+        'assigned_companies': len(global_state['shared_state']['assigned_companies']),
+        'active_sessions': list(global_state['shared_state']['user_sessions'].keys()),
+        'last_updated': global_state['shared_state'].get('last_updated'),
+        'global_index': global_state['shared_state']['global_index']
+    }
+    return jsonify(stats)
+
+@app.route('/api/test')
+def test_endpoint():
+    """Test endpoint to verify API is working"""
+    return jsonify({
+        'status': 'success',
+        'message': 'API is working!',
+        'companies_loaded': len(global_state['companies']),
+        'environment': 'vercel' if os.environ.get('VERCEL') else 'local'
+    })
+
+# Initialize data on startup
+load_companies()
+
+# Vercel expects the app to be available as 'app'
+if __name__ == '__main__':
+    app.run(debug=True)
