@@ -232,6 +232,60 @@
             font-size: 0.9rem;
         }
 
+        .instructions-panel {
+            background: linear-gradient(135deg, #fff3e0, #ffcc80);
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #e65100;
+        }
+
+        .instructions-panel h3 {
+            color: #e65100;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .instruction-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+
+        .instruction-icon {
+            font-size: 1.2rem;
+            margin-right: 0.75rem;
+            margin-top: 0.1rem;
+            min-width: 1.5rem;
+        }
+
+        .good-criteria {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-left: 4px solid #4CAF50;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+        }
+
+        .bad-criteria {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            border-left: 4px solid #f44336;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+        }
+
+        .criteria-title {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
         .username-modal {
             position: fixed;
             top: 0;
@@ -532,6 +586,43 @@
 
         <div id="mainContent" class="main-content" style="display: none;">
             <div class="website-panel">
+                <div class="instructions-panel">
+                    <h3>📋 Review Instructions</h3>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-icon">🔗</span>
+                        <span><strong>Make sure to click on the link for websites that won't load in the app.</strong></span>
+                    </div>
+                    
+                    <div class="good-criteria">
+                        <div class="criteria-title">👍 Click "Good" for:</div>
+                        <div class="instruction-item">
+                            <span class="instruction-icon">✈️</span>
+                            <span>Travel companies that we'd want to work with</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bad-criteria">
+                        <div class="criteria-title">👎 Click "Bad" for:</div>
+                        <div class="instruction-item">
+                            <span class="instruction-icon">🚫</span>
+                            <span>Companies that are NOT travel-related</span>
+                        </div>
+                        <div class="instruction-item">
+                            <span class="instruction-icon">😵</span>
+                            <span>Websites with horrible user experiences</span>
+                        </div>
+                        <div class="instruction-item">
+                            <span class="instruction-icon">🌍</span>
+                            <span>Websites that are in a different language</span>
+                        </div>
+                        <div class="instruction-item">
+                            <span class="instruction-icon">⚠️</span>
+                            <span>Anything that you think is a no-no</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="website-info">
                     <div class="company-name" id="companyName"></div>
                     <a href="#" id="websiteUrl" class="website-url" target="_blank"></a>
