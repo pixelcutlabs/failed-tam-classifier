@@ -23,7 +23,10 @@ CORS(app)
 # Configuration
 USER_SESSION_TIMEOUT = 300  # 5 minutes timeout for inactive sessions
 
-# Global state (in-memory for Vercel)
+# State file path (using /tmp for Vercel)
+STATE_FILE = '/tmp/review_state.json'
+
+# Global state (persistent storage for Vercel)
 global_state = {
     'companies': [],
     'shared_state': {
@@ -35,6 +38,45 @@ global_state = {
         'last_updated': None
     }
 }
+
+def save_state():
+    """Save current state to persistent storage"""
+    try:
+        # Save to /tmp which persists across requests in Vercel
+        with open(STATE_FILE, 'w') as f:
+            # Don't save companies data (too large), just shared state
+            state_to_save = {
+                'shared_state': global_state['shared_state'],
+                'version': '1.0',  # For future compatibility
+                'saved_at': datetime.now().isoformat()
+            }
+            json.dump(state_to_save, f, indent=2)
+        print(f"State saved to {STATE_FILE}")
+    except Exception as e:
+        print(f"Error saving state: {e}")
+
+def clear_state():
+    """Clear persistent state file"""
+    try:
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
+            print(f"State file {STATE_FILE} cleared")
+    except Exception as e:
+        print(f"Error clearing state: {e}")
+
+def load_state():
+    """Load state from persistent storage"""
+    try:
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, 'r') as f:
+                saved_state = json.load(f)
+                global_state['shared_state'].update(saved_state['shared_state'])
+            print(f"State loaded from {STATE_FILE}")
+            print(f"Loaded progress: {len(global_state['shared_state']['completed_reviews']['liked'])} liked, {len(global_state['shared_state']['completed_reviews']['disliked'])} disliked")
+            return True
+    except Exception as e:
+        print(f"Error loading state: {e}")
+    return False
 
 def load_companies():
     """Load companies from CSV - for Vercel, we'll embed the data"""
@@ -136,6 +178,9 @@ def set_username(username):
     else:
         # Update last active time for existing user
         global_state['shared_state']['leaderboard'][username]['last_active'] = time.time()
+    
+    # Save state when username is set/updated
+    save_state()
 
 def update_user_activity(user_id):
     """Update user's last activity timestamp"""
@@ -236,6 +281,13 @@ def mark_company_reviewed(user_id, company_index, liked):
         global_state['shared_state']['global_index'] += 1
     
     global_state['shared_state']['last_updated'] = datetime.now().isoformat()
+    
+    # Save state after each review
+    save_state()
+    
+    print(f"Company {company_index} marked as {'liked' if liked else 'disliked'} by user {user_id[:8]}")
+    print(f"Total progress: {len(global_state['shared_state']['completed_reviews']['liked'])} liked, {len(global_state['shared_state']['completed_reviews']['disliked'])} disliked")
+    
     return True
 
 def get_progress_stats():
@@ -416,6 +468,10 @@ def admin_reset():
         'leaderboard': {},
         'last_updated': datetime.now().isoformat()
     }
+    
+    # Save reset state
+    save_state()
+    
     return jsonify({'success': True, 'message': 'All progress and leaderboard reset successfully'})
 
 @app.route('/api/admin/stats')
@@ -456,6 +512,7 @@ def debug_assignments():
 
 # Initialize data on startup
 load_companies()
+load_state()  # Load persistent state on startup
 
 # Vercel expects the app to be available as 'app'
 if __name__ == '__main__':
