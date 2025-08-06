@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Website Review Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .stat-card h3 {
+            color: #495057;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #007bff;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .description {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .progress-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .progress-section h2 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar-container {
+            background: #e9ecef;
+            border-radius: 8px;
+            height: 20px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            color: #495057;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .actions-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .details-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .details-section h2 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .detail-value {
+            color: #6c757d;
+        }
+
+        .auto-refresh {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #1976d2;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Dashboard</h1>
+            <p>Website Review Tool - Crowdsourced Progress</p>
+        </div>
+
+        <div class="auto-refresh">
+            🔄 Auto-refreshing every 5 seconds • Last updated: <span id="lastUpdated">Never</span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Companies</h3>
+                <div class="value" id="totalCompanies">0</div>
+                <div class="description">In database</div>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Completed Reviews</h3>
+                <div class="value" id="completedReviews">0</div>
+                <div class="description">Finished by team</div>
+            </div>
+            
+            <div class="stat-card">
+                <h3>In Progress</h3>
+                <div class="value" id="inProgress">0</div>
+                <div class="description">Currently assigned</div>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Active Users</h3>
+                <div class="value" id="activeUsers">0</div>
+                <div class="description">Working right now</div>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <h2>Overall Progress</h2>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">0% Complete</div>
+        </div>
+
+        <div class="actions-section">
+            <button class="btn btn-primary" onclick="refreshStats()">🔄 Refresh Data</button>
+            <button class="btn btn-success" onclick="exportLiked()">📄 Export Liked</button>
+            <button class="btn btn-success" onclick="exportDisliked()">📄 Export Disliked</button>
+            <a href="/" class="btn btn-primary">👀 Join Review</a>
+            <button class="btn btn-danger" onclick="resetProgress()">⚠️ Reset All</button>
+        </div>
+
+        <div class="details-section">
+            <h2>Detailed Statistics</h2>
+            <div class="detail-row">
+                <span class="detail-label">Liked Websites:</span>
+                <span class="detail-value" id="likedCount">0</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Disliked Websites:</span>
+                <span class="detail-value" id="dislikedCount">0</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Remaining to Review:</span>
+                <span class="detail-value" id="remainingCount">0</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Global Index Position:</span>
+                <span class="detail-value" id="globalIndex">0</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Last Database Update:</span>
+                <span class="detail-value" id="lastDbUpdate">Never</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval;
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/stats');
+                const data = await response.json();
+                
+                // Update main stats
+                document.getElementById('totalCompanies').textContent = data.total;
+                document.getElementById('completedReviews').textContent = data.completed;
+                document.getElementById('inProgress').textContent = data.assigned;
+                document.getElementById('activeUsers').textContent = data.active_users;
+                
+                // Update progress bar
+                document.getElementById('progressBar').style.width = `${data.progress_percent}%`;
+                document.getElementById('progressText').textContent = `${data.progress_percent}% Complete (${data.completed}/${data.total})`;
+                
+                // Update detailed stats
+                document.getElementById('likedCount').textContent = data.liked_count;
+                document.getElementById('dislikedCount').textContent = data.disliked_count;
+                document.getElementById('remainingCount').textContent = data.remaining;
+                document.getElementById('globalIndex').textContent = data.detailed.global_index;
+                document.getElementById('lastDbUpdate').textContent = data.detailed.last_updated || 'Never';
+                
+                // Update refresh time
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('lastUpdated').textContent = 'Error loading data';
+            }
+        }
+
+        function refreshStats() {
+            loadStats();
+        }
+
+        async function exportLiked() {
+            try {
+                const response = await fetch('/api/export/liked');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `liked_websites_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error exporting liked websites');
+                }
+            } catch (error) {
+                console.error('Error exporting liked websites:', error);
+                alert('Error exporting data. Please try again.');
+            }
+        }
+
+        async function exportDisliked() {
+            try {
+                const response = await fetch('/api/export/disliked');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `disliked_websites_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error exporting disliked websites');
+                }
+            } catch (error) {
+                console.error('Error exporting disliked websites:', error);
+                alert('Error exporting data. Please try again.');
+            }
+        }
+
+        async function resetProgress() {
+            if (!confirm('⚠️ WARNING: This will reset ALL progress and delete all reviews!\n\nThis action cannot be undone. Are you absolutely sure?')) {
+                return;
+            }
+            
+            if (!confirm('🔴 FINAL WARNING: This will permanently delete all work done by your team. Type YES in the next dialog to confirm.')) {
+                return;
+            }
+            
+            const confirmation = prompt('Type "DELETE ALL DATA" to confirm reset:');
+            if (confirmation !== 'DELETE ALL DATA') {
+                alert('Reset cancelled - confirmation text did not match.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/reset', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ All progress has been reset successfully.');
+                    loadStats();
+                } else {
+                    alert('❌ Error resetting progress');
+                }
+            } catch (error) {
+                console.error('Error resetting progress:', error);
+                alert('❌ Error resetting progress. Please try again.');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            
+            // Auto-refresh every 5 seconds
+            refreshInterval = setInterval(loadStats, 5000);
+        });
+
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

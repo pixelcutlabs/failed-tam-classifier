@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Review Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .website-panel {
+            flex: 2;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .website-info {
+            margin-bottom: 1rem;
+        }
+
+        .company-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .website-url {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 1.1rem;
+            word-break: break-all;
+        }
+
+        .website-url:hover {
+            text-decoration: underline;
+        }
+
+        .website-frame {
+            flex: 1;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .website-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .iframe-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .controls-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-like {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-like:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-dislike {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .btn-dislike:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stats h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .user-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #1976d2;
+        }
+
+        .crowdsource-banner {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .export-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .export-section h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .export-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .btn-export {
+            background: #17a2b8;
+            color: white;
+            font-size: 0.9rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            background: #138496;
+            transform: translateY(-1px);
+        }
+
+        .finished-screen {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .finished-screen h2 {
+            color: #4CAF50;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .finished-screen p {
+            color: #666;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .keyboard-shortcuts {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .keyboard-shortcuts h4 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .shortcut {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .key {
+            background: #e9ecef;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .container {
+                width: 95%;
+                height: 95vh;
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .action-buttons {
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Website Review Tool</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading...</div>
+        </div>
+
+        <div id="loadingScreen" class="loading">
+            <div class="spinner"></div>
+            Loading website data...
+        </div>
+
+        <div id="mainContent" class="main-content" style="display: none;">
+            <div class="website-panel">
+                <div class="website-info">
+                    <div class="company-name" id="companyName"></div>
+                    <a href="#" id="websiteUrl" class="website-url" target="_blank"></a>
+                </div>
+                <div class="website-frame">
+                    <iframe id="websiteIframe" class="website-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+                    <div id="iframeOverlay" class="iframe-overlay" style="display: none;">
+                        Loading website...
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-panel">
+                <div class="crowdsource-banner">
+                    🌟 Crowdsourced Review • Multiple users working together
+                </div>
+                
+                <div class="user-info">
+                    👤 Your ID: <span id="userId">Loading...</span>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="likeBtn" class="btn btn-like">👍 Good Website</button>
+                    <button id="dislikeBtn" class="btn btn-dislike">👎 Bad Website</button>
+                </div>
+
+                <div class="keyboard-shortcuts">
+                    <h4>Keyboard Shortcuts:</h4>
+                    <div class="shortcut">
+                        <span>Good Website:</span>
+                        <span class="key">G</span>
+                    </div>
+                    <div class="shortcut">
+                        <span>Bad Website:</span>
+                        <span class="key">B</span>
+                    </div>
+                    <div class="shortcut">
+                        <span>Open in New Tab:</span>
+                        <span class="key">O</span>
+                    </div>
+                </div>
+
+                <div class="stats">
+                    <h3>Progress</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Completed:</span>
+                        <span class="stat-value" id="completedCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">In Progress:</span>
+                        <span class="stat-value" id="assignedCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Remaining:</span>
+                        <span class="stat-value" id="remainingCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Active Users:</span>
+                        <span class="stat-value" id="activeUsers">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Liked:</span>
+                        <span class="stat-value" id="likedCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Disliked:</span>
+                        <span class="stat-value" id="dislikedCount">0</span>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <h3>Export Results</h3>
+                    <div class="export-buttons">
+                        <button id="exportLiked" class="btn btn-secondary btn-export">Export Liked Websites</button>
+                        <button id="exportDisliked" class="btn btn-secondary btn-export">Export Disliked Websites</button>
+                        <button id="resetProgress" class="btn btn-secondary btn-export">Reset Progress</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="finishedScreen" class="finished-screen" style="display: none;">
+            <h2>🎉 All Done!</h2>
+            <p>You've reviewed all companies in the list.</p>
+            <div class="export-buttons">
+                <button id="exportLikedFinal" class="btn btn-export">Export Liked Websites</button>
+                <button id="exportDislikedFinal" class="btn btn-export">Export Disliked Websites</button>
+                <button id="resetProgressFinal" class="btn btn-secondary">Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WebsiteReviewer {
+            constructor() {
+                this.currentCompany = null;
+                this.currentCompanyIndex = null;
+                this.userId = null;
+                this.isLoading = false;
+                this.init();
+            }
+
+            async init() {
+                this.bindEvents();
+                this.bindKeyboardShortcuts();
+                await this.loadCurrent();
+            }
+
+            bindEvents() {
+                document.getElementById('likeBtn').addEventListener('click', () => this.markCompany(true));
+                document.getElementById('dislikeBtn').addEventListener('click', () => this.markCompany(false));
+                
+                document.getElementById('exportLiked').addEventListener('click', () => this.exportCSV('liked'));
+                document.getElementById('exportDisliked').addEventListener('click', () => this.exportCSV('disliked'));
+                document.getElementById('exportLikedFinal').addEventListener('click', () => this.exportCSV('liked'));
+                document.getElementById('exportDislikedFinal').addEventListener('click', () => this.exportCSV('disliked'));
+                
+                document.getElementById('resetProgress').addEventListener('click', () => this.resetProgress());
+                document.getElementById('resetProgressFinal').addEventListener('click', () => this.resetProgress());
+
+                // Handle iframe loading
+                const iframe = document.getElementById('websiteIframe');
+                iframe.addEventListener('load', () => {
+                    document.getElementById('iframeOverlay').style.display = 'none';
+                });
+            }
+
+            bindKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    if (this.isLoading) return;
+                    
+                    switch(e.key.toLowerCase()) {
+                        case 'g':
+                            e.preventDefault();
+                            this.markCompany(true);
+                            break;
+                        case 'b':
+                            e.preventDefault();
+                            this.markCompany(false);
+                            break;
+                        case 'o':
+                            e.preventDefault();
+                            if (this.currentCompany) {
+                                window.open(this.currentCompany.website, '_blank');
+                            }
+                            break;
+                    }
+                });
+            }
+
+            async loadCurrent() {
+                this.isLoading = true;
+                this.setButtonsEnabled(false);
+                
+                try {
+                    const response = await fetch('/api/current');
+                    const data = await response.json();
+                    
+                    this.updateProgress(data.progress);
+                    
+                    if (data.finished) {
+                        this.showFinishedScreen();
+                    } else {
+                        this.currentCompany = data.company;
+                        this.currentCompanyIndex = data.company_index;
+                        this.userId = data.user_id;
+                        this.displayCompany(data.company);
+                        this.updateUserInfo();
+                        this.showMainContent();
+                    }
+                } catch (error) {
+                    console.error('Error loading current company:', error);
+                    alert('Error loading data. Please refresh the page.');
+                } finally {
+                    this.isLoading = false;
+                    this.setButtonsEnabled(true);
+                }
+            }
+
+            displayCompany(company) {
+                document.getElementById('companyName').textContent = company.company_name;
+                document.getElementById('websiteUrl').textContent = company.website;
+                document.getElementById('websiteUrl').href = company.website;
+                
+                // Show overlay while loading
+                document.getElementById('iframeOverlay').style.display = 'flex';
+                
+                // Load website in iframe
+                const iframe = document.getElementById('websiteIframe');
+                iframe.src = company.website;
+            }
+
+            async markCompany(liked) {
+                if (this.isLoading) return;
+                
+                this.isLoading = true;
+                this.setButtonsEnabled(false);
+                
+                try {
+                    const response = await fetch('/api/mark', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            liked: liked,
+                            company_index: this.currentCompanyIndex
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        await this.loadCurrent();
+                    } else {
+                        alert('Error marking company: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error marking company:', error);
+                    alert('Error saving response. Please try again.');
+                } finally {
+                    this.isLoading = false;
+                    this.setButtonsEnabled(true);
+                }
+            }
+
+            updateProgress(progress) {
+                document.getElementById('progressFill').style.width = `${progress.progress_percent}%`;
+                document.getElementById('progressText').textContent = 
+                    `${progress.completed} of ${progress.total} completed (${progress.progress_percent}%)`;
+                
+                document.getElementById('completedCount').textContent = progress.completed;
+                document.getElementById('assignedCount').textContent = progress.assigned;
+                document.getElementById('remainingCount').textContent = progress.remaining;
+                document.getElementById('activeUsers').textContent = progress.active_users;
+                document.getElementById('likedCount').textContent = progress.liked_count;
+                document.getElementById('dislikedCount').textContent = progress.disliked_count;
+            }
+
+            updateUserInfo() {
+                if (this.userId) {
+                    document.getElementById('userId').textContent = this.userId;
+                }
+            }
+
+            setButtonsEnabled(enabled) {
+                document.getElementById('likeBtn').disabled = !enabled;
+                document.getElementById('dislikeBtn').disabled = !enabled;
+            }
+
+            showMainContent() {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('finishedScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'flex';
+            }
+
+            showFinishedScreen() {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'none';
+                document.getElementById('finishedScreen').style.display = 'block';
+            }
+
+            async exportCSV(category) {
+                try {
+                    const response = await fetch(`/api/export/${category}`);
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${category}_websites_${new Date().toISOString().slice(0,10)}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    } else {
+                        const error = await response.json();
+                        alert(error.error || 'Error exporting data');
+                    }
+                } catch (error) {
+                    console.error('Error exporting CSV:', error);
+                    alert('Error exporting data. Please try again.');
+                }
+            }
+
+            async resetProgress() {
+                if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/reset', {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error resetting progress');
+                    }
+                } catch (error) {
+                    console.error('Error resetting progress:', error);
+                    alert('Error resetting progress. Please try again.');
+                }
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new WebsiteReviewer();
+        });
+    </script>
+</body>
+</html>
