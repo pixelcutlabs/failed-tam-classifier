@@ -666,6 +666,11 @@
                         Loading website...
                     </div>
                 </div>
+                
+                <!-- Hidden preload iframes for next 3 websites -->
+                <iframe id="preloadFrame1" src="about:blank" width="1" height="1" style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+                <iframe id="preloadFrame2" src="about:blank" width="1" height="1" style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+                <iframe id="preloadFrame3" src="about:blank" width="1" height="1" style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
             </div>
 
             <div class="controls-panel">
@@ -792,6 +797,8 @@
                 this.username = null;
                 this.userStats = {};
                 this.isLoading = false;
+                this.preloadedCompanies = []; // Store preloaded companies
+                this.preloadQueue = []; // Queue of preloaded iframes
                 this.init();
             }
 
@@ -915,6 +922,14 @@
                             username: this.username
                         });
                         
+                        // Handle preloaded companies
+                        if (data.preload_companies) {
+                            this.preloadedCompanies = data.preload_companies;
+                            console.log(`📦 Preloading ${this.preloadedCompanies.length} companies:`, 
+                                       this.preloadedCompanies.map(c => c.company_index));
+                            this.startPreloading();
+                        }
+                        
                         this.displayCompany(data.company);
                         this.updateUserInfo();
                         this.showMainContent();
@@ -933,12 +948,22 @@
                 document.getElementById('websiteUrl').textContent = company.website;
                 document.getElementById('websiteUrl').href = company.website;
                 
-                // Show overlay while loading
-                document.getElementById('iframeOverlay').style.display = 'flex';
+                // Try to use preloaded content first
+                const wasPreloaded = this.getNextPreloadedCompany();
                 
-                // Load website in iframe
-                const iframe = document.getElementById('websiteIframe');
-                iframe.src = company.website;
+                if (!wasPreloaded) {
+                    // Show overlay while loading (only if not preloaded)
+                    document.getElementById('iframeOverlay').style.display = 'flex';
+                    
+                    // Load website in iframe normally
+                    const iframe = document.getElementById('websiteIframe');
+                    iframe.src = company.website;
+                    console.log(`🔄 Loading company ${this.currentCompanyIndex} normally: ${company.website}`);
+                } else {
+                    // Hide overlay immediately since content is preloaded
+                    document.getElementById('iframeOverlay').style.display = 'none';
+                    console.log(`⚡ Displayed preloaded company ${this.currentCompanyIndex}: ${company.website}`);
+                }
             }
 
             async markCompany(liked) {
@@ -1059,6 +1084,47 @@
                     console.error('Error checking existing username:', error);
                     return false;
                 }
+            }
+
+            startPreloading() {
+                // Start preloading the next websites in hidden iframes
+                this.preloadedCompanies.forEach((companyData, index) => {
+                    if (index < 3) { // Only preload up to 3
+                        const frameId = `preloadFrame${index + 1}`;
+                        const iframe = document.getElementById(frameId);
+                        if (iframe && companyData.company.website) {
+                            console.log(`📦 Preloading company ${companyData.company_index}: ${companyData.company.website}`);
+                            iframe.src = companyData.company.website;
+                        }
+                    }
+                });
+            }
+
+            getNextPreloadedCompany() {
+                // Check if we have a preloaded company that matches our current assignment
+                if (this.preloadedCompanies.length > 0) {
+                    // Find if any preloaded company is now our current assignment
+                    const preloadedMatch = this.preloadedCompanies.find(pc => pc.company_index === this.currentCompanyIndex);
+                    if (preloadedMatch) {
+                        console.log(`⚡ Using preloaded company ${this.currentCompanyIndex}`);
+                        
+                        // Find which iframe has this company and move it to main iframe
+                        for (let i = 1; i <= 3; i++) {
+                            const preloadFrame = document.getElementById(`preloadFrame${i}`);
+                            if (preloadFrame && preloadFrame.src === preloadedMatch.company.website) {
+                                const mainIframe = document.getElementById('websiteIframe');
+                                mainIframe.src = preloadFrame.src;
+                                
+                                // Clear the preload frame
+                                preloadFrame.src = 'about:blank';
+                                
+                                console.log(`⚡ Moved preloaded content from frame${i} to main iframe`);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
             }
 
             showUsernameModal() {

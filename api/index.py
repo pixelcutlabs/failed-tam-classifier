@@ -220,50 +220,78 @@ def update_user_activity(user_id):
     else:
         global_state['shared_state']['user_sessions'][user_id]['last_active'] = current_time
 
-def get_next_available_company(user_id):
-    """Get the next available company for a user"""
+def get_next_available_companies(user_id, count=1):
+    """Get the next available companies for a user (supports preloading)"""
     companies = load_companies()
     cleanup_expired_sessions()
     update_user_activity(user_id)
     
+    result_companies = []
+    result_indices = []
+    
     # Check if user already has an assigned company
+    existing_assignment = None
     for company_index, assignment in global_state['shared_state']['assigned_companies'].items():
         if assignment['user_id'] == user_id:
             company_idx = int(company_index)
             if company_idx < len(companies):
                 print(f"User {user_id[:8]} returning to existing assignment: {company_idx}")
-                return companies[company_idx], company_idx
+                existing_assignment = (companies[company_idx], company_idx)
+                break
     
-    # Find next unassigned company starting from global_index
+    if existing_assignment and count == 1:
+        return existing_assignment[0], existing_assignment[1]
+    elif existing_assignment:
+        # If requesting multiple and user has existing, include it first
+        result_companies.append(existing_assignment[0])
+        result_indices.append(existing_assignment[1])
+        count -= 1
+    
+    # Find next unassigned companies starting from global_index
     search_index = global_state['shared_state']['global_index']
-    max_search = min(search_index + 100, len(companies))  # Limit search to prevent infinite loops
+    max_search = min(search_index + 200, len(companies))  # Increased search range for preloading
+    found_count = 0
     
-    while search_index < max_search:
+    while search_index < max_search and found_count < count:
         # Check if this company is already assigned
         if str(search_index) not in global_state['shared_state']['assigned_companies']:
-            # Assign to current user
-            global_state['shared_state']['assigned_companies'][str(search_index)] = {
-                'user_id': user_id,
-                'assigned_at': time.time()
-            }
-            global_state['shared_state']['user_sessions'][user_id]['current_company'] = search_index
+            # For the first company (current), assign to user
+            if found_count == 0 and not existing_assignment:
+                global_state['shared_state']['assigned_companies'][str(search_index)] = {
+                    'user_id': user_id,
+                    'assigned_at': time.time()
+                }
+                global_state['shared_state']['user_sessions'][user_id]['current_company'] = search_index
+                
+                # Only advance global index if we assigned the next expected company
+                if search_index == global_state['shared_state']['global_index']:
+                    global_state['shared_state']['global_index'] += 1
+                
+                print(f"Assigned company {search_index} to user {user_id[:8]}")
             
-            # Only advance global index if we assigned the next expected company
-            if search_index == global_state['shared_state']['global_index']:
-                global_state['shared_state']['global_index'] += 1
-            
-            print(f"Assigned company {search_index} to user {user_id[:8]}")
-            return companies[search_index], search_index
+            result_companies.append(companies[search_index])
+            result_indices.append(search_index)
+            found_count += 1
         
         search_index += 1
     
-    # If we couldn't find anything in the immediate range, advance global index and try again
-    if global_state['shared_state']['global_index'] < len(companies):
+    # If we couldn't find enough companies, try advancing global index
+    if found_count == 0 and global_state['shared_state']['global_index'] < len(companies):
         global_state['shared_state']['global_index'] += 1
-        return get_next_available_company(user_id)
+        return get_next_available_companies(user_id, count)
     
-    print(f"No available companies found for user {user_id[:8]}")
-    return None, None
+    if count == 1:
+        if result_companies:
+            return result_companies[0], result_indices[0]
+        else:
+            print(f"No available companies found for user {user_id[:8]}")
+            return None, None
+    else:
+        return result_companies, result_indices
+
+def get_next_available_company(user_id):
+    """Get the next available company for a user (backwards compatibility)"""
+    return get_next_available_companies(user_id, 1)
 
 def mark_company_reviewed(user_id, company_index, liked):
     """Mark a company as reviewed and remove assignment"""
@@ -383,7 +411,7 @@ def admin():
 
 @app.route('/api/current')
 def get_current():
-    """Get current company for the user"""
+    """Get current company for the user with preloading"""
     user_id = get_user_id()
     username = get_username()
     
@@ -397,12 +425,11 @@ def get_current():
             'progress': get_progress_stats()
         })
     
-    company, company_index = get_next_available_company(user_id)
+    # Get current company plus next 3 for preloading
+    companies, company_indices = get_next_available_companies(user_id, 4)
     progress = get_progress_stats()
     
-    print(f"User {username} assigned company index: {company_index}")
-    
-    if company is None:
+    if not companies:
         return jsonify({
             'finished': True,
             'progress': progress,
@@ -410,10 +437,26 @@ def get_current():
             'user_stats': global_state['shared_state']['leaderboard'].get(username, {})
         })
     
+    # Current company is the first one
+    current_company = companies[0]
+    current_index = company_indices[0]
+    
+    # Preload companies are the rest (up to 3 more)
+    preload_companies = []
+    for i in range(1, len(companies)):
+        preload_companies.append({
+            'company': companies[i],
+            'company_index': company_indices[i]
+        })
+    
+    print(f"User {username} assigned company index: {current_index}")
+    print(f"Preloading {len(preload_companies)} additional companies: {[c['company_index'] for c in preload_companies]}")
+    
     return jsonify({
         'finished': False,
-        'company': company,
-        'company_index': company_index,
+        'company': current_company,
+        'company_index': current_index,
+        'preload_companies': preload_companies,
         'progress': progress,
         'user_id': user_id[:8],
         'username': username,
